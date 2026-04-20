@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>🌾 Manajemen Sawah Keluarga</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --green-950: #052e16;
+  --green-900: #14532d;
+  --green-800: #166534;
+  --green-700: #15803d;
+  --green-600: #16a34a;
+  --green-500: #22c55e;
+  --green-200: #bbf7d0;
+  --green-100: #dcfce7;
+  --green-50:  #f0fdf4;
+  --gold:      #d97706;
+  --gold-light:#fef3c7;
+  --brown:     #78350f;
+  --earth:     #a16207;
+  --red:       #dc2626;
+  --blue:      #1d4ed8;
+  --gray-900:  #111827;
+  --gray-700:  #374151;
+  --gray-500:  #6b7280;
+  --gray-300:  #d1d5db;
+  --gray-100:  #f3f4f6;
+  --white:     #ffffff;
+  --radius:    12px;
+  --shadow:    0 4px 24px rgba(0,0,0,.10);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,.15);
+  --font-display: 'Playfair Display', serif;
+  --font-body:    'DM Sans', sans-serif;
+  --font-mono:    'DM Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--green-950);
+  color: var(--gray-900);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── BACKGROUND TEXTURE ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 20% 0%, rgba(21,128,61,.35) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(5,46,22,.6) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── TOPBAR ── */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(5,46,22,.92);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(34,197,94,.15);
+  padding: 0 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+}
+.topbar-brand {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: var(--green-200);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.topbar-brand span { font-size: 1.4rem; }
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+#authBtn {
+  background: var(--green-700);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-family: var(--font-body);
+  font-size: .85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all .2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+#authBtn:hover { background: var(--green-600); }
+#authBtn.connected { background: rgba(34,197,94,.2); color: var(--green-200); border: 1px solid var(--green-700); }
+#syncStatus {
+  font-size: .75rem;
+  color: var(--green-500);
+  display: none;
+}
+#syncStatus.show { display: block; }
+
+/* ── NAV TABS ── */
+.nav-wrap {
+  position: sticky;
+  top: 60px;
+  z-index: 99;
+  background: rgba(5,46,22,.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(34,197,94,.1);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav-wrap::-webkit-scrollbar { display: none; }
+.nav {
+  display: flex;
+  padding: 0 16px;
+  gap: 2px;
+  min-width: max-content;
+}
+.nav-btn {
+  padding: 14px 18px;
+  border: none;
+  background: transparent;
+  color: rgba(187,247,208,.55);
+  font-family: var(--font-body);
+  font-size: .85rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: all .2s;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.nav-btn:hover { color: var(--green-200); }
+.nav-btn.active {
+  color: var(--green-200);
+  border-bottom-color: var(--green-500);
+}
+
+/* ── MAIN CONTENT ── */
+.main {
+  position: relative;
+  z-index: 1;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 80px;
+}
+
+/* ── PAGES ── */
+.page { display: none; }
+.page.active { display: block; animation: fadeIn .3s ease; }
+@keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+
+/* ── CARD ── */
+.card {
+  background: rgba(255,255,255,.97);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.card-header {
+  background: var(--green-900);
+  color: var(--green-100);
+  padding: 16px 20px;
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.card-body { padding: 20px; }
+
+/* ── KPI GRID ── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.kpi {
+  background: rgba(255,255,255,.07);
+  border: 1px solid rgba(34,197,94,.2);
+  border-radius: var(--radius);
+  padding: 18px 16px;
+  text-align: center;
+}
+.kpi-label {
+  font-size: .72rem;
+  color: rgba(187,247,208,.6);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin-bottom: 6px;
+}
+.kpi-value {
+  font-family: var(--font-display);
+  font-size: 1.8rem;
+  color: var(--green-200);
+  line-height: 1;
+}
+.kpi-sub {
+  font-size: .7rem;
+  color: rgba(187,247,208,.4);
+  margin-top: 4px;
+}
+
+/* ── SECTION TITLE ── */
+.section-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  color: var(--green-200);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── TABLE ── */
+.tbl-wrap { overflow-x: auto; border-radius: 10px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .85rem;
+  background: white;
+}
+thead th {
+  background: var(--green-900);
+  color: var(--green-100);
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 500;
+  font-size: .78rem;
+  white-space: nowrap;
+}
+tbody tr { border-bottom: 1px solid var(--gray-100); transition: background .15s; }
+tbody tr:hover { background: var(--green-50); }
+tbody td { padding: 10px 14px; vertical-align: middle; }
+.badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: .72rem;
+  font-weight: 600;
+}
+.badge-green  { background: var(--green-100); color: var(--green-800); }
+.badge-gold   { background: var(--gold-light); color: var(--brown); }
+.badge-gray   { background: var(--gray-100);   color: var(--gray-700); }
+.badge-red    { background: #fee2e2; color: var(--red); }
+
+/* ── FORM ── */
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.form-group label {
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--gray-700);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.form-group input,
+.form-group select,
+.form-group textarea {
+  border: 1.5px solid var(--gray-300);
+  border-radius: 8px;
+  padding: 11px 14px;
+  font-family: var(--font-body);
+  font-size: .9rem;
+  color: var(--gray-900);
+  transition: border-color .2s, box-shadow .2s;
+  background: white;
+  width: 100%;
+}
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: var(--green-600);
+  box-shadow: 0 0 0 3px rgba(22,163,74,.12);
+}
+.form-group .hint {
+  font-size: .72rem;
+  color: var(--gray-500);
+  margin-top: -2px;
+}
+.result-box {
+  background: var(--green-50);
+  border: 1.5px solid var(--green-200);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.result-label { font-size: .85rem; color: var(--green-800); font-weight: 500; }
+.result-value {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  color: var(--green-800);
+}
+
+/* ── BUTTONS ── */
+.btn {
+  border: none;
+  border-radius: 9px;
+  padding: 12px 24px;
+  font-family: var(--font-body);
+  font-size: .9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-primary {
+  background: var(--green-700);
+  color: white;
+}
+.btn-primary:hover { background: var(--green-800); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(22,163,74,.3); }
+.btn-primary:active { transform: none; }
+.btn-secondary {
+  background: var(--gray-100);
+  color: var(--gray-700);
+}
+.btn-secondary:hover { background: var(--gray-300); }
+.btn-danger { background: #fee2e2; color: var(--red); }
+.btn-danger:hover { background: #fca5a5; }
+.btn-sm { padding: 7px 14px; font-size: .78rem; }
+.btn-group { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 20px; }
+
+/* ── TOAST ── */
+#toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--green-900);
+  color: var(--green-100);
+  padding: 12px 24px;
+  border-radius: 50px;
+  font-size: .88rem;
+  font-weight: 500;
+  box-shadow: var(--shadow-lg);
+  transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+  z-index: 9999;
+  white-space: nowrap;
+  pointer-events: none;
+}
+#toast.show { transform: translateX(-50%) translateY(0); }
+#toast.error { background: #7f1d1d; }
+
+/* ── SETUP BANNER ── */
+.setup-banner {
+  background: rgba(217,119,6,.12);
+  border: 1px solid rgba(217,119,6,.35);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.setup-banner-icon { font-size: 1.4rem; flex-shrink: 0; }
+.setup-banner-text h3 { color: var(--gold); font-size: .95rem; margin-bottom: 4px; }
+.setup-banner-text p { color: rgba(187,247,208,.7); font-size: .82rem; line-height: 1.5; }
+
+/* ── JADWAL ── */
+.jadwal-grid {
+  display: grid;
+  gap: 12px;
+}
+.jadwal-card {
+  background: white;
+  border-radius: 10px;
+  padding: 16px;
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  border-left: 4px solid var(--gray-300);
+  transition: box-shadow .2s;
+}
+.jadwal-card:hover { box-shadow: var(--shadow); }
+.jadwal-card.status-selesai { border-left-color: var(--green-600); }
+.jadwal-card.status-tanam   { border-left-color: #86efac; }
+.jadwal-card.status-panen   { border-left-color: var(--gold); }
+.jadwal-card.status-rencana { border-left-color: var(--gray-300); }
+.jadwal-card.status-masalah { border-left-color: #f97316; }
+.jadwal-card.status-gagal   { border-left-color: var(--red); }
+.jadwal-no {
+  width: 36px; height: 36px;
+  background: var(--green-900);
+  color: var(--green-200);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+}
+.jadwal-info h4 { font-size: .9rem; color: var(--gray-900); margin-bottom: 2px; }
+.jadwal-info p  { font-size: .75rem; color: var(--gray-500); }
+.jadwal-meta { text-align: right; }
+.jadwal-musim {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--green-800);
+  background: var(--green-100);
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+  margin-bottom: 4px;
+  display: inline-block;
+}
+
+/* ── LAPORAN CHART ── */
+.chart-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.chart-bar-row { display: flex; align-items: center; gap: 10px; }
+.chart-bar-label { font-size: .75rem; color: var(--gray-700); min-width: 130px; }
+.chart-bar-track {
+  flex: 1;
+  height: 24px;
+  background: var(--gray-100);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+.chart-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--green-700), var(--green-500));
+  transition: width .8s cubic-bezier(.34,1.2,.64,1);
+  display: flex; align-items: center; padding-left: 10px;
+}
+.chart-bar-fill.gold-bar {
+  background: linear-gradient(90deg, var(--brown), var(--gold));
+}
+.chart-bar-val {
+  font-size: .72rem;
+  font-weight: 600;
+  color: white;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+.chart-bar-ext {
+  font-size: .72rem;
+  color: var(--gray-500);
+  min-width: 80px;
+  text-align: right;
+}
+
+/* ── LOADING ── */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  gap: 10px;
+  color: rgba(187,247,208,.5);
+  font-size: .88rem;
+}
+.spinner {
+  width: 20px; height: 20px;
+  border: 2px solid rgba(34,197,94,.2);
+  border-top-color: var(--green-500);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── EMPTY STATE ── */
+.empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: rgba(187,247,208,.4);
+}
+.empty-icon { font-size: 3rem; margin-bottom: 12px; }
+.empty p { font-size: .88rem; }
+
+/* ── MOBILE ── */
+@media (max-width: 600px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .form-grid { grid-template-columns: 1fr; }
+  .topbar-brand span:last-child { display: none; }
+  .jadwal-card { grid-template-columns: 36px 1fr; }
+  .jadwal-meta { grid-column: 1/-1; text-align: left; }
+}
+
+/* ── MODAL ── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: white;
+  border-radius: 16px;
+  max-width: 480px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  animation: modalIn .3s cubic-bezier(.34,1.2,.64,1);
+}
+@keyframes modalIn { from { opacity:0; transform:scale(.92); } to { opacity:1; transform:scale(1); } }
+.modal-header {
+  background: var(--green-900);
+  color: var(--green-100);
+  padding: 18px 22px;
+  border-radius: 16px 16px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.modal-header h3 { font-family: var(--font-display); font-size: 1.1rem; }
+.modal-close {
+  background: none; border: none;
+  color: var(--green-300); font-size: 1.3rem;
+  cursor: pointer; padding: 4px;
+}
+.modal-body { padding: 22px; }
+
+/* ── SETUP STEPS ── */
+.setup-steps { counter-reset: step; }
+.setup-step {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 18px;
+  align-items: flex-start;
+}
+.step-num {
+  counter-increment: step;
+  width: 28px; height: 28px; flex-shrink: 0;
+  background: var(--green-900);
+  color: var(--green-200);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .82rem;
+  font-weight: 700;
+}
+.step-num::before { content: counter(step); }
+.step-content h4 { font-size: .9rem; color: var(--gray-900); margin-bottom: 4px; }
+.step-content p, .step-content li { font-size: .82rem; color: var(--gray-500); line-height: 1.6; }
+.step-content code {
+  background: var(--gray-100);
+  padding: 2px 7px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: .8rem;
+  color: var(--green-800);
+  word-break: break-all;
+}
+.step-content input {
+  border: 1.5px solid var(--gray-300);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-family: var(--font-mono);
+  font-size: .82rem;
+  width: 100%;
+  margin-top: 6px;
+}
+.step-content input:focus { outline: none; border-color: var(--green-600); }
+
+/* ── NUMBER FORMAT ── */
+.rp { font-family: var(--font-mono); }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span>🌾</span>
+    <span>Manajemen Sawah</span>
+  </div>
+  <div class="topbar-right">
+    <span id="syncStatus">✓ Tersimpan</span>
+    <button id="authBtn" onclick="handleAuth()">🔗 Hubungkan Google Sheets</button>
+  </div>
+</div>
+
+<!-- NAV -->
+<div class="nav-wrap">
+  <div class="nav">
+    <button class="nav-btn active" onclick="showPage('dashboard',this)">📊 Dashboard</button>
+    <button class="nav-btn" onclick="showPage('input',this)">✏️ Input Panen</button>
+    <button class="nav-btn" onclick="showPage('log',this)">📈 Log Panen</button>
+    <button class="nav-btn" onclick="showPage('jadwal',this)">📅 Jadwal</button>
+    <button class="nav-btn" onclick="showPage('laporan',this)">📋 Laporan</button>
+    <button class="nav-btn" onclick="showPage('aset',this)">🏡 Aset</button>
+    <button class="nav-btn" onclick="showPage('setup',this)">⚙️ Setup</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main">
+
+  <!-- ══ DASHBOARD ══ -->
+  <div id="page-dashboard" class="page active">
+    <div class="kpi-grid" id="kpiGrid">
+      <div class="kpi"><div class="kpi-label">Total Sawah</div><div class="kpi-value" id="kpi-sawah">9</div><div class="kpi-sub">Petak aktif</div></div>
+      <div class="kpi"><div class="kpi-label">Total Luas</div><div class="kpi-value" id="kpi-luas">416</div><div class="kpi-sub">Are</div></div>
+      <div class="kpi"><div class="kpi-label">Income 2026</div><div class="kpi-value" id="kpi-2026">—</div><div class="kpi-sub">Rupiah</div></div>
+      <div class="kpi"><div class="kpi-label">All Time</div><div class="kpi-value" id="kpi-total">—</div><div class="kpi-sub">Total panen</div></div>
+    </div>
+
+    <div id="setupBanner" class="setup-banner">
+      <div class="setup-banner-icon">⚠️</div>
+      <div class="setup-banner-text">
+        <h3>Hubungkan Google Sheets untuk data real-time</h3>
+        <p>Klik <strong>⚙️ Setup</strong> di navigasi, ikuti 3 langkah mudah, lalu klik <strong>🔗 Hubungkan Google Sheets</strong> di pojok kanan atas. Data akan tersimpan otomatis ke spreadsheet Anda.</p>
+      </div>
+    </div>
+
+    <div class="section-title" style="color:var(--green-200);">📞 Koordinator Wilayah</div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-body" style="padding:14px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
+          <div style="background:var(--green-50);border-radius:10px;padding:14px;">
+            <div style="font-size:.72rem;color:var(--green-800);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">🌾 Serason</div>
+            <div style="font-weight:600;color:var(--gray-900);font-size:.92rem;">Pan Dewi</div>
+            <div style="color:var(--blue);font-family:var(--font-mono);font-size:.82rem;margin-top:2px;">085738013661</div>
+          </div>
+          <div style="background:#fffbeb;border-radius:10px;padding:14px;">
+            <div style="font-size:.72rem;color:var(--brown);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">🌾 Delod Tajen</div>
+            <div style="font-weight:600;color:var(--gray-900);font-size:.92rem;">Gusti Bete</div>
+            <div style="color:var(--blue);font-family:var(--font-mono);font-size:.82rem;margin-top:2px;">085792047804</div>
+          </div>
+          <div style="background:#fdf4ff;border-radius:10px;padding:14px;">
+            <div style="font-size:.72rem;color:#6b21a8;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">🌾 Sunantaya</div>
+            <div style="font-weight:600;color:var(--gray-900);font-size:.92rem;">Pan Santul</div>
+            <div style="color:var(--blue);font-family:var(--font-mono);font-size:.82rem;margin-top:2px;">081936543047</div>
+          </div>
+          <div style="background:var(--gray-100);border-radius:10px;padding:14px;">
+            <div style="font-size:.72rem;color:var(--gray-700);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;">🌾 Kelod Kangin</div>
+            <div style="font-weight:600;color:var(--gray-900);font-size:.92rem;">Pan Sri / Pan Dewi</div>
+            <div style="color:var(--blue);font-family:var(--font-mono);font-size:.82rem;margin-top:2px;">085738013661</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title" style="color:var(--green-200);">📈 5 Panen Terakhir</div>
+    <div class="card">
+      <div class="card-body" style="padding:0;">
+        <div class="tbl-wrap">
+          <table id="recentTable">
+            <thead><tr><th>Tanggal</th><th>Pemilik</th><th>Sawah</th><th>Penandu</th><th>Hasil Bersih</th></tr></thead>
+            <tbody id="recentBody"><tr><td colspan="5"><div class="loading"><div class="spinner"></div>Memuat data...</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ INPUT PANEN ══ -->
+  <div id="page-input" class="page">
+    <div class="card">
+      <div class="card-header">✏️ Input Hasil Panen Baru</div>
+      <div class="card-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>📅 Tanggal Panen</label>
+            <input type="date" id="f-tanggal">
+          </div>
+          <div class="form-group">
+            <label>🌾 Musim Tanam</label>
+            <select id="f-musim">
+              <option value="">-- Pilih Musim --</option>
+              <option>Tanam 1 - 2025</option><option>Tanam 2 - 2025</option>
+              <option selected>Tanam 1 - 2026</option><option>Tanam 2 - 2026</option>
+              <option>Tanam 1 - 2027</option><option>Tanam 2 - 2027</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>👤 Pemilik Sawah</label>
+            <select id="f-pemilik">
+              <option value="">-- Pilih --</option>
+              <option>Made Sadguna</option>
+              <option>Wayan Watere</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>🔢 Nomor Sawah</label>
+            <select id="f-no" onchange="autoFillLetak()">
+              <option value="">-- Pilih --</option>
+              <option value="1">1 — Pekarange (Serason) — Wayan Watere</option>
+              <option value="2">2 — Pekarange (Serason) — Wayan Watere</option>
+              <option value="3">3 — Dangin Karadan — Wayan Watere</option>
+              <option value="4">4 — Delod Tajen — Wayan Watere</option>
+              <option value="5">5 — Delod Tajen — Made Sadguna</option>
+              <option value="6">6 — Delod Tajen — Made Sadguna</option>
+              <option value="7">7 — Kelod Kangin — Made Sadguna</option>
+              <option value="8">8 — Dajan Sunantaya — Made Sadguna</option>
+              <option value="9">9 — Dajan Sunantaya — Made Sadguna</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>📍 Letak Sawah</label>
+            <input type="text" id="f-letak" readonly style="background:var(--gray-100);" placeholder="Otomatis dari nomor sawah">
+          </div>
+          <div class="form-group">
+            <label>🧑‍🌾 Penandu / Penggarap</label>
+            <select id="f-penandu">
+              <option value="">-- Pilih --</option>
+              <option>Pan Dewi (Serason)</option>
+              <option>Pan Mariani (Serason)</option>
+              <option>Pan Eka (Karadan)</option>
+              <option>Pan Sasih (Tajen)</option>
+              <option>Gusti Made Asih (Tajen)</option>
+              <option>Gusti Bete (Tajen)</option>
+              <option>Pan Sri (Kelod Kangin)</option>
+              <option>Pan Santul (Sunantaya)</option>
+              <option>Pan Sudri (Sunantaya)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>📐 Luas (Are)</label>
+            <input type="number" id="f-luas" placeholder="cth: 50" min="0">
+          </div>
+          <div class="form-group">
+            <label>💰 Hasil Panen (Rp)</label>
+            <input type="number" id="f-hasil" placeholder="cth: 5000000" min="0" oninput="calcBersih()">
+            <span class="hint" id="hasil-preview"></span>
+          </div>
+          <div class="form-group">
+            <label>✂️ Biaya / Potongan (Rp)</label>
+            <input type="number" id="f-biaya" placeholder="0" value="0" min="0" oninput="calcBersih()">
+            <span class="hint">Biaya operasional, upeti, dll</span>
+          </div>
+          <div class="form-group" style="grid-column:1/-1;">
+            <label>📝 Keterangan</label>
+            <textarea id="f-ket" rows="2" placeholder="Catatan tambahan (gagal panen, bibit, dll)"></textarea>
+          </div>
+        </div>
+
+        <div class="result-box" id="resultBox" style="display:none;">
+          <div>
+            <div class="result-label">💵 Hasil Bersih</div>
+            <div class="result-value rp" id="resultVal">Rp 0</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:.75rem;color:var(--gray-500);">Hasil − Biaya</div>
+            <div style="font-size:.82rem;color:var(--green-800);" id="resultCalc"></div>
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="submitPanen()">💾 Simpan ke Google Sheets</button>
+          <button class="btn btn-secondary" onclick="resetForm()">🔄 Reset Form</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ LOG PANEN ══ -->
+  <div id="page-log" class="page">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+      <div class="section-title" style="color:var(--green-200);margin:0;">📈 Log Semua Panen</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <select id="filterMusim" onchange="filterLog()" style="border:1px solid rgba(34,197,94,.3);background:rgba(255,255,255,.08);color:var(--green-200);border-radius:8px;padding:7px 12px;font-size:.82rem;">
+          <option value="">Semua Musim</option>
+        </select>
+        <select id="filterPemilik" onchange="filterLog()" style="border:1px solid rgba(34,197,94,.3);background:rgba(255,255,255,.08);color:var(--green-200);border-radius:8px;padding:7px 12px;font-size:.82rem;">
+          <option value="">Semua Pemilik</option>
+          <option>Made Sadguna</option>
+          <option>Wayan Watere</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="refreshLog()">🔄</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body" style="padding:0;">
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Tanggal</th><th>Musim</th><th>Pemilik</th><th>No</th>
+                <th>Letak</th><th>Penandu</th><th>Luas</th><th>Hasil</th><th>Biaya</th><th>Bersih</th><th>Ket</th>
+              </tr>
+            </thead>
+            <tbody id="logBody"><tr><td colspan="11"><div class="loading"><div class="spinner"></div>Memuat...</div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div id="logTotal" style="text-align:right;color:var(--green-200);font-size:.88rem;margin-top:8px;font-family:var(--font-mono);"></div>
+  </div>
+
+  <!-- ══ JADWAL ══ -->
+  <div id="page-jadwal" class="page">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:10px;">
+      <div class="section-title" style="color:var(--green-200);margin:0;">📅 Jadwal Tanam & Panen</div>
+      <select id="filterTahunJadwal" onchange="renderJadwal()" style="border:1px solid rgba(34,197,94,.3);background:rgba(255,255,255,.08);color:var(--green-200);border-radius:8px;padding:7px 12px;font-size:.82rem;">
+        <option value="2026">2026</option>
+        <option value="2027">2027</option>
+      </select>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;">
+      <div style="background:rgba(255,255,255,.06);border:1px solid rgba(34,197,94,.2);border-radius:10px;padding:14px;">
+        <div style="font-size:.72rem;color:rgba(187,247,208,.5);text-transform:uppercase;letter-spacing:.08em;">Tanam 1 (Jan–Mei)</div>
+        <div style="font-family:var(--font-display);font-size:1.5rem;color:var(--green-200);" id="stat-t1">—</div>
+      </div>
+      <div style="background:rgba(255,255,255,.06);border:1px solid rgba(217,119,6,.2);border-radius:10px;padding:14px;">
+        <div style="font-size:.72rem;color:rgba(187,247,208,.5);text-transform:uppercase;letter-spacing:.08em;">Tanam 2 (Jul–Nov)</div>
+        <div style="font-family:var(--font-display);font-size:1.5rem;color:var(--gold);" id="stat-t2">—</div>
+      </div>
+    </div>
+
+    <div class="jadwal-grid" id="jadwalGrid"></div>
+  </div>
+
+  <!-- ══ LAPORAN ══ -->
+  <div id="page-laporan" class="page">
+    <div class="section-title" style="color:var(--green-200);">📋 Laporan Per Musim Tanam</div>
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-header">💰 Income Per Musim (Bersih)</div>
+      <div class="card-body">
+        <div class="chart-bars" id="chartMusim"><div class="loading"><div class="spinner"></div>Memuat...</div></div>
+      </div>
+    </div>
+
+    <div class="section-title" style="color:var(--green-200);">🏡 Income Per Pemilik</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;">
+      <div class="card">
+        <div class="card-header" style="background:var(--green-900);">Made Sadguna</div>
+        <div class="card-body" style="text-align:center;">
+          <div style="font-family:var(--font-display);font-size:1.8rem;color:var(--green-800);" id="totalMade">—</div>
+          <div style="font-size:.75rem;color:var(--gray-500);margin-top:4px;">Total all time</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header" style="background:var(--brown);">Wayan Watere</div>
+        <div class="card-body" style="text-align:center;">
+          <div style="font-family:var(--font-display);font-size:1.8rem;color:var(--brown);" id="totalWayan">—</div>
+          <div style="font-size:.75rem;color:var(--gray-500);margin-top:4px;">Total all time</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title" style="color:var(--green-200);">📐 Income Per Sawah (All Time)</div>
+    <div class="card">
+      <div class="card-header">🏡 Ranking Produktivitas Sawah</div>
+      <div class="card-body">
+        <div class="chart-bars" id="chartSawah"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ASET ══ -->
+  <div id="page-aset" class="page">
+    <div class="section-title" style="color:var(--green-200);">🏡 Data Aset Sawah</div>
+    <div class="card">
+      <div class="card-body" style="padding:0;">
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr><th>No</th><th>Pemilik</th><th>Letak</th><th>Luas</th><th>Penandu</th><th>HP</th><th>Sertifikat</th><th>Status</th></tr>
+            </thead>
+            <tbody id="asetBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SETUP ══ -->
+  <div id="page-setup" class="page">
+    <div class="card">
+      <div class="card-header">⚙️ Setup Koneksi Google Sheets</div>
+      <div class="card-body">
+        <p style="font-size:.88rem;color:var(--gray-500);margin-bottom:20px;">Ikuti langkah berikut untuk menghubungkan web app ini dengan Google Sheets. Cukup dilakukan sekali saja.</p>
+
+        <div class="setup-steps">
+          <div class="setup-step">
+            <div class="step-num"></div>
+            <div class="step-content">
+              <h4>Buat Google Sheets baru</h4>
+              <p>Buka <a href="https://sheets.new" target="_blank" style="color:var(--blue);">sheets.new</a> → buat spreadsheet baru dengan nama <strong>"Manajemen Sawah"</strong>. Buat 3 sheet tab: <code>PANEN_LOG</code>, <code>ASET</code>, <code>JADWAL</code>.</p>
+              <p style="margin-top:6px;">Salin <strong>Spreadsheet ID</strong> dari URL (bagian antara <code>/d/</code> dan <code>/edit</code>):</p>
+              <input type="text" id="cfg-sheetId" placeholder="Paste Spreadsheet ID di sini..." oninput="saveConfig()">
+            </div>
+          </div>
+
+          <div class="setup-step">
+            <div class="step-num"></div>
+            <div class="step-content">
+              <h4>Buat Google Cloud Project & API Key</h4>
+              <ol style="margin-left:16px;">
+                <li>Buka <a href="https://console.cloud.google.com" target="_blank" style="color:var(--blue);">console.cloud.google.com</a></li>
+                <li>Buat project baru → <strong>New Project</strong></li>
+                <li>Aktifkan <strong>Google Sheets API</strong> dan <strong>Google Drive API</strong></li>
+                <li>Buat <strong>OAuth 2.0 Client ID</strong> (tipe: Web application)</li>
+                <li>Tambahkan Authorized JavaScript origin: URL tempat app ini dihosting (atau <code>http://localhost</code> untuk testing)</li>
+                <li>Copy <strong>Client ID</strong>:</li>
+              </ol>
+              <input type="text" id="cfg-clientId" placeholder="Paste Google OAuth Client ID di sini..." oninput="saveConfig()">
+            </div>
+          </div>
+
+          <div class="setup-step">
+            <div class="step-num"></div>
+            <div class="step-content">
+              <h4>Inisialisasi Header Kolom di Google Sheets</h4>
+              <p>Setelah mengisi Spreadsheet ID dan Client ID di atas, klik tombol ini untuk otomatis mengisi header kolom di Google Sheets Anda:</p>
+              <div style="margin-top:10px;">
+                <button class="btn btn-primary btn-sm" onclick="initSheetHeaders()">🚀 Inisialisasi Google Sheets</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="setup-step">
+            <div class="step-num"></div>
+            <div class="step-content">
+              <h4>Import data historis dari Excel</h4>
+              <p>Buka file <strong>Management_Sawah_v2.xlsx</strong> yang sudah dibuat sebelumnya → copy data dari sheet <strong>📈 PANEN LOG</strong> → paste ke sheet <strong>PANEN_LOG</strong> di Google Sheets Anda mulai baris ke-2.</p>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:var(--green-50);border-radius:10px;padding:16px;margin-top:8px;">
+          <div style="font-weight:600;color:var(--green-800);margin-bottom:8px;">📊 Status Koneksi</div>
+          <div id="connStatus" style="font-size:.88rem;color:var(--gray-500);">Belum terhubung — isi konfigurasi di atas lalu klik tombol di kanan atas.</div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn btn-primary" onclick="handleAuth()">🔗 Hubungkan Google Sheets</button>
+          <button class="btn btn-secondary" onclick="testConnection()">🧪 Test Koneksi</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ALTERNATIF: DEMO MODE -->
+    <div class="card">
+      <div class="card-header" style="background:#1e3a5f;">🎯 Mode Demo (Tanpa Setup)</div>
+      <div class="card-body">
+        <p style="font-size:.88rem;color:var(--gray-500);margin-bottom:14px;">Gunakan mode demo untuk melihat tampilan app dengan data sampel lokal (tidak tersimpan ke cloud). Data hilang saat browser ditutup.</p>
+        <button class="btn btn-secondary" onclick="activateDemoMode()">▶️ Aktifkan Mode Demo</button>
+        <span id="demoStatus" style="margin-left:10px;font-size:.82rem;color:var(--green-600);display:none;">✓ Mode Demo Aktif</span>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- MODAL KONFIRMASI -->
+<div class="modal-overlay" id="modalConfirm">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>✅ Konfirmasi Simpan</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.9rem;color:var(--gray-700);margin-bottom:16px;">Data panen berikut akan disimpan ke Google Sheets:</p>
+      <div id="modalPreview" style="background:var(--gray-100);border-radius:8px;padding:14px;font-size:.85rem;line-height:1.8;font-family:var(--font-mono);color:var(--gray-700);"></div>
+      <div class="btn-group" style="margin-top:16px;">
+        <button class="btn btn-primary" onclick="confirmSave()">💾 Ya, Simpan</button>
+        <button class="btn btn-secondary" onclick="closeModal()">Batal</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GOOGLE API Scripts -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// CONFIG & STATE
+// ══════════════════════════════════════════════════════════
+const CFG_KEY = 'sawah_config';
+let cfg = JSON.parse(localStorage.getItem(CFG_KEY) || '{}');
+let tokenClient = null;
+let accessToken = null;
+let isDemo = false;
+let allData = [];
+let pendingData = null;
+
+const ASET_DATA = [
+  {no:1, pemilik:'Wayan Watere', letak:'Pekarange (Serason)', luas:50, penandu:'Pan Dewi (Serason)', hp:'085738013661', sertifikat:'Belum Ada', status:'Aktif'},
+  {no:2, pemilik:'Wayan Watere', letak:'Pekarange (Serason)', luas:40, penandu:'Pan Mariani / Pan Dewi', hp:'-', sertifikat:'Belum Ada', status:'Aktif'},
+  {no:3, pemilik:'Wayan Watere', letak:'Dangin Karadan', luas:60, penandu:'Pan Eka', hp:'082247818435', sertifikat:'Belum Ada', status:'Aktif'},
+  {no:4, pemilik:'Wayan Watere', letak:'Delod Tajen', luas:49.5, penandu:'Pan Sasih', hp:'081805301057', sertifikat:'Ada', status:'Aktif'},
+  {no:5, pemilik:'Made Sadguna', letak:'Delod Tajen', luas:19.5, penandu:'Gusti Made Asih (Tajen)', hp:'-', sertifikat:'Ada', status:'Aktif'},
+  {no:6, pemilik:'Made Sadguna', letak:'Delod Tajen', luas:60, penandu:'Gusti Bete (Tajen)', hp:'085792047804', sertifikat:'Ada', status:'Aktif'},
+  {no:7, pemilik:'Made Sadguna', letak:'Kelod Kangin', luas:77, penandu:'Pan Sri / Pan Dewi', hp:'085738013661', sertifikat:'-', status:'Aktif'},
+  {no:8, pemilik:'Made Sadguna', letak:'Dajan Sunantaya', luas:25, penandu:'Pan Santul (Sunantaya)', hp:'081936543047', sertifikat:'Belum Ada', status:'Aktif'},
+  {no:9, pemilik:'Made Sadguna', letak:'Dajan Sunantaya', luas:35, penandu:'Pan Santul / Pan Sudri', hp:'081936543047', sertifikat:'Belum Ada', status:'Aktif'},
+];
+
+const LETAK_MAP = {
+  '1':'Pekarange (Serason)','2':'Pekarange (Serason)',
+  '3':'Dangin Karadan','4':'Delod Tajen','5':'Delod Tajen',
+  '6':'Delod Tajen','7':'Kelod Kangin','8':'Dajan Sunantaya','9':'Dajan Sunantaya'
+};
+
+const JADWAL_DATA = [
+  // 2026 Tanam 1
+  {no:1,pemilik:'Wayan Watere',letak:'Pekarange (Serason)',penandu:'Pan Dewi',musim:'Tanam 1 - 2026',mulai:'15 Jan',panen:'15 Mei',durasi:120,status:'selesai',tahun:2026},
+  {no:2,pemilik:'Wayan Watere',letak:'Pekarange (Serason)',penandu:'Pan Mariani',musim:'Tanam 1 - 2026',mulai:'15 Jan',panen:'15 Mei',durasi:120,status:'selesai',tahun:2026},
+  {no:3,pemilik:'Wayan Watere',letak:'Dangin Karadan',penandu:'Pan Eka',musim:'Tanam 1 - 2026',mulai:'15 Jan',panen:'20 Mei',durasi:125,status:'selesai',tahun:2026},
+  {no:4,pemilik:'Wayan Watere',letak:'Delod Tajen',penandu:'Pan Sasih',musim:'Tanam 1 - 2026',mulai:'20 Jan',panen:'20 Mei',durasi:120,status:'selesai',tahun:2026},
+  {no:5,pemilik:'Made Sadguna',letak:'Delod Tajen',penandu:'Gusti Made Asih',musim:'Tanam 1 - 2026',mulai:'20 Jan',panen:'20 Mei',durasi:120,status:'tanam',tahun:2026},
+  {no:6,pemilik:'Made Sadguna',letak:'Delod Tajen',penandu:'Gusti Bete',musim:'Tanam 1 - 2026',mulai:'20 Jan',panen:'07 Mei',durasi:107,status:'selesai',tahun:2026},
+  {no:7,pemilik:'Made Sadguna',letak:'Kelod Kangin',penandu:'Pan Sri/Pan Dewi',musim:'Tanam 1 - 2026',mulai:'15 Jan',panen:'20 Mei',durasi:125,status:'tanam',tahun:2026},
+  {no:8,pemilik:'Made Sadguna',letak:'Dajan Sunantaya',penandu:'Pan Santul',musim:'Tanam 1 - 2026',mulai:'22 Jan',panen:'22 Mei',durasi:120,status:'selesai',tahun:2026},
+  {no:9,pemilik:'Made Sadguna',letak:'Dajan Sunantaya',penandu:'Pan Santul/Pan Sudri',musim:'Tanam 1 - 2026',mulai:'22 Jan',panen:'22 Mei',durasi:120,status:'selesai',tahun:2026},
+  // 2026 Tanam 2
+  {no:1,pemilik:'Wayan Watere',letak:'Pekarange (Serason)',penandu:'Pan Dewi',musim:'Tanam 2 - 2026',mulai:'01 Jul',panen:'01 Nov',durasi:123,status:'rencana',tahun:2026},
+  {no:2,pemilik:'Wayan Watere',letak:'Pekarange (Serason)',penandu:'Pan Mariani',musim:'Tanam 2 - 2026',mulai:'01 Jul',panen:'01 Nov',durasi:123,status:'rencana',tahun:2026},
+  {no:3,pemilik:'Wayan Watere',letak:'Dangin Karadan',penandu:'Pan Eka',musim:'Tanam 2 - 2026',mulai:'01 Jul',panen:'05 Nov',durasi:127,status:'rencana',tahun:2026},
+  {no:4,pemilik:'Wayan Watere',letak:'Delod Tajen',penandu:'Pan Sasih',musim:'Tanam 2 - 2026',mulai:'05 Jul',panen:'05 Nov',durasi:123,status:'rencana',tahun:2026},
+  {no:5,pemilik:'Made Sadguna',letak:'Delod Tajen',penandu:'Gusti Made Asih',musim:'Tanam 2 - 2026',mulai:'05 Jul',panen:'05 Nov',durasi:123,status:'rencana',tahun:2026},
+  {no:6,pemilik:'Made Sadguna',letak:'Delod Tajen',penandu:'Gusti Bete',musim:'Tanam 2 - 2026',mulai:'05 Jul',panen:'05 Nov',durasi:123,status:'rencana',tahun:2026},
+  {no:7,pemilik:'Made Sadguna',letak:'Kelod Kangin',penandu:'Pan Sri/Pan Dewi',musim:'Tanam 2 - 2026',mulai:'01 Jul',panen:'05 Nov',durasi:127,status:'rencana',tahun:2026},
+  {no:8,pemilik:'Made Sadguna',letak:'Dajan Sunantaya',penandu:'Pan Santul',musim:'Tanam 2 - 2026',mulai:'07 Jul',panen:'07 Nov',durasi:123,status:'rencana',tahun:2026},
+  {no:9,pemilik:'Made Sadguna',letak:'Dajan Sunantaya',penandu:'Pan Santul/Pan Sudri',musim:'Tanam 2 - 2026',mulai:'07 Jul',panen:'07 Nov',durasi:123,status:'rencana',tahun:2026},
+  // 2027
+  {no:1,pemilik:'Wayan Watere',letak:'Pekarange (Serason)',penandu:'Pan Dewi',musim:'Tanam 1 - 2027',mulai:'Jan 2027',panen:'Mei 2027',durasi:120,status:'rencana',tahun:2027},
+  {no:2,pemilik:'Wayan Watere',letak:'Pekarange (Serason)',penandu:'Pan Mariani',musim:'Tanam 1 - 2027',mulai:'Jan 2027',panen:'Mei 2027',durasi:120,status:'rencana',tahun:2027},
+  {no:3,pemilik:'Wayan Watere',letak:'Dangin Karadan',penandu:'Pan Eka',musim:'Tanam 1 - 2027',mulai:'Jan 2027',panen:'Mei 2027',durasi:125,status:'rencana',tahun:2027},
+  {no:4,pemilik:'Wayan Watere',letak:'Delod Tajen',penandu:'Pan Sasih',musim:'Tanam 1 - 2027',mulai:'Jan 2027',panen:'Mei 2027',durasi:120,status:'rencana',tahun:2027},
+  {no:5,pemilik:'Made Sadguna',letak:'Delod Tajen',penandu:'Gusti Made Asih',musim:'Tanam 1 - 2027',mulai:'Jan 2027',panen:'Mei 2027',durasi:120,status:'rencana',tahun:2027},
+  {no:6,pemilik:'Made Sadguna',letak:'Delod Tajen',penandu:'Gusti Bete',musim:'Tanam 1 - 2027',mulai:'Jan 2027',panen:'Mei 2027',durasi:120,status:'rencana',tahun:2027},
+  {no:7,pemilik:'Made Sadguna',letak:'Kelod Kangin',penandu:'Pan Sri/Pan Dewi',musim:'Tanam 1 - 2027',mulai:'Jan 2027',panen:'Mei 2027',durasi:125,status:'rencana',tahun:2027},
+  {no:8,pemilik:'Made Sadguna',letak:'Dajan Sunantaya',penandu:'Pan Santul',musim:'Tanam 1 - 2027',mulai:'Jan 2027',panen:'Mei 2027',durasi:120,status:'rencana',tahun:2027},
+  {no:9,pemilik:'Made Sadguna',letak:'Dajan Sunantaya',penandu:'Pan Santul/Pan Sudri',musim:'Tanam 1 - 2027',mulai:'Jan 2027',panen:'Mei 2027',durasi:120,status:'rencana',tahun:2027},
+];
+
+const DEMO_LOG = [
+  {tanggal:'22/01/2026',musim:'Tanam 1 - 2026',pemilik:'Made Sadguna',no:9,letak:'Dajan Sunantaya',penandu:'Pan Santul (Sunantaya)',luas:35,hasil:6000000,biaya:0,bersih:6000000,ket:''},
+  {tanggal:'20/03/2026',musim:'Tanam 1 - 2026',pemilik:'Wayan Watere',no:4,letak:'Delod Tajen',penandu:'Pan Sasih (Tajen)',luas:49.5,hasil:2000000,biaya:0,bersih:2000000,ket:'2 juta ke men sugi'},
+  {tanggal:'18/03/2026',musim:'Tanam 1 - 2026',pemilik:'Wayan Watere',no:3,letak:'Dangin Karadan',penandu:'Pan Eka (Karadan)',luas:60,hasil:3000000,biaya:0,bersih:3000000,ket:''},
+  {tanggal:'07/05/2026',musim:'Tanam 1 - 2026',pemilik:'Made Sadguna',no:6,letak:'Delod Tajen',penandu:'Gusti Bete (Tajen)',luas:60,hasil:4500000,biaya:0,bersih:4500000,ket:''},
+  {tanggal:'21/08/2025',musim:'Tanam 2 - 2025',pemilik:'Wayan Watere',no:1,letak:'Pekarange (Serason)',penandu:'Pan Dewi (Serason)',luas:50,hasil:3670000,biaya:0,bersih:3670000,ket:''},
+  {tanggal:'11/08/2025',musim:'Tanam 2 - 2025',pemilik:'Made Sadguna',no:9,letak:'Dajan Sunantaya',penandu:'Pan Santul (Sunantaya)',luas:35,hasil:6000000,biaya:0,bersih:6000000,ket:''},
+  {tanggal:'27/12/2024',musim:'Tanam 2 - 2024',pemilik:'Made Sadguna',no:6,letak:'Delod Tajen',penandu:'Gusti Bete (Tajen)',luas:60,hasil:5300000,biaya:0,bersih:5300000,ket:''},
+  {tanggal:'02/04/2024',musim:'Tanam 1 - 2024',pemilik:'Wayan Watere',no:1,letak:'Pekarange (Serason)',penandu:'Pan Dewi (Serason)',luas:50,hasil:11847000,biaya:0,bersih:11847000,ket:''},
+];
+
+// ══════════════════════════════════════════════════════════
+// NAV & PAGE ROUTING
+// ══════════════════════════════════════════════════════════
+function showPage(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(id === 'log') renderLog();
+  if(id === 'laporan') renderLaporan();
+  if(id === 'jadwal') renderJadwal();
+  if(id === 'aset') renderAset();
+  if(id === 'setup') loadConfig();
+}
+
+// ══════════════════════════════════════════════════════════
+// CONFIG
+// ══════════════════════════════════════════════════════════
+function saveConfig() {
+  cfg.sheetId = document.getElementById('cfg-sheetId').value.trim();
+  cfg.clientId = document.getElementById('cfg-clientId').value.trim();
+  localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+}
+function loadConfig() {
+  if(cfg.sheetId) document.getElementById('cfg-sheetId').value = cfg.sheetId;
+  if(cfg.clientId) document.getElementById('cfg-clientId').value = cfg.clientId;
+}
+
+// ══════════════════════════════════════════════════════════
+// AUTH - Google OAuth
+// ══════════════════════════════════════════════════════════
+function handleAuth() {
+  if(!cfg.clientId) { showToast('Isi Client ID Google dulu di menu ⚙️ Setup', true); showPage('setup', document.querySelectorAll('.nav-btn')[6]); return; }
+  if(!cfg.sheetId) { showToast('Isi Spreadsheet ID dulu di menu ⚙️ Setup', true); return; }
+  initGoogleAuth();
+}
+
+function initGoogleAuth() {
+  try {
+    tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: cfg.clientId,
+      scope: 'https://www.googleapis.com/auth/spreadsheets',
+      callback: (resp) => {
+        if(resp.error) { showToast('Auth gagal: ' + resp.error, true); return; }
+        accessToken = resp.access_token;
+        onAuthSuccess();
+      }
+    });
+    tokenClient.requestAccessToken();
+  } catch(e) {
+    showToast('Google API belum siap. Coba lagi.', true);
+  }
+}
+
+function onAuthSuccess() {
+  document.getElementById('authBtn').textContent = '✅ Terhubung';
+  document.getElementById('authBtn').classList.add('connected');
+  document.getElementById('connStatus').textContent = '✅ Terhubung ke Google Sheets • ' + new Date().toLocaleTimeString('id-ID');
+  document.getElementById('setupBanner').style.display = 'none';
+  showToast('✅ Berhasil terhubung ke Google Sheets!');
+  loadFromSheets();
+}
+
+// ══════════════════════════════════════════════════════════
+// GOOGLE SHEETS API
+// ══════════════════════════════════════════════════════════
+const SHEET_NAME = 'PANEN_LOG';
+const SHEET_RANGE = `${SHEET_NAME}!A:L`;
+const HEADERS = ['Tanggal','Musim Tanam','Pemilik Sawah','No Sawah','Letak Sawah','Penandu','Luas (Are)','Hasil Panen (Rp)','Biaya (Rp)','Bersih (Rp)','Keterangan'];
+
+async function apiRequest(method, range, body) {
+  const url = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${encodeURIComponent(range)}${method==='GET'?'?valueRenderOption=UNFORMATTED_VALUE':''}`;
+  const opts = {
+    method: method === 'GET' ? 'GET' : 'PUT',
+    headers: { 'Authorization': 'Bearer ' + accessToken, 'Content-Type': 'application/json' }
+  };
+  if(body) opts.body = JSON.stringify(body);
+  const res = await fetch(method === 'APPEND' ?
+    `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED` :
+    url, { ...opts, method: method === 'APPEND' ? 'POST' : opts.method });
+  return res.json();
+}
+
+async function loadFromSheets() {
+  if(!accessToken) return;
+  try {
+    showToast('🔄 Memuat data...');
+    const data = await apiRequest('GET', `${SHEET_NAME}!A2:K5000`);
+    if(data.values) {
+      allData = data.values.map(r => ({
+        tanggal: r[0]||'', musim: r[1]||'', pemilik: r[2]||'',
+        no: r[3]||'', letak: r[4]||'', penandu: r[5]||'',
+        luas: parseFloat(r[6])||0, hasil: parseFloat(r[7])||0,
+        biaya: parseFloat(r[8])||0, bersih: parseFloat(r[9])||0, ket: r[10]||''
+      }));
+    }
+    updateKPIs();
+    renderRecent();
+    renderLog();
+    renderLaporan();
+    showToast('✅ Data berhasil dimuat');
+  } catch(e) {
+    showToast('Gagal memuat data: ' + e.message, true);
+  }
+}
+
+async function appendToSheet(rowData) {
+  const row = [
+    rowData.tanggal, rowData.musim, rowData.pemilik, rowData.no,
+    rowData.letak, rowData.penandu, rowData.luas, rowData.hasil,
+    rowData.biaya, rowData.bersih, rowData.ket
+  ];
+  await apiRequest('APPEND', `${SHEET_NAME}!A:K`, { values: [row] });
+}
+
+async function initSheetHeaders() {
+  saveConfig();
+  if(!cfg.sheetId || !cfg.clientId) { showToast('Isi Spreadsheet ID dan Client ID dulu!', true); return; }
+  if(!accessToken) { handleAuth(); return; }
+  try {
+    await apiRequest('PUT', `${SHEET_NAME}!A1:K1`, { values: [HEADERS] });
+    // Also init ASET sheet
+    const asetHeaders = ['No','Pemilik Sawah','Letak Sawah','Luas (Are)','Penandu','No HP','No Sertifikat','Status'];
+    await apiRequest('PUT', `ASET!A1:H1`, { values: [asetHeaders] });
+    showToast('✅ Header berhasil dibuat di Google Sheets!');
+  } catch(e) {
+    showToast('Gagal inisialisasi: ' + e.message, true);
+  }
+}
+
+async function testConnection() {
+  saveConfig();
+  if(!cfg.sheetId) { showToast('Isi Spreadsheet ID dulu!', true); return; }
+  if(!accessToken) { showToast('Hubungkan Google Sheets dulu!', true); return; }
+  try {
+    const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}?fields=properties.title`, {
+      headers: { 'Authorization': 'Bearer ' + accessToken }
+    });
+    const d = await r.json();
+    if(d.properties) showToast('✅ Terhubung ke: ' + d.properties.title);
+    else showToast('Gagal: ' + JSON.stringify(d.error?.message), true);
+  } catch(e) {
+    showToast('Error: ' + e.message, true);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// DEMO MODE
+// ══════════════════════════════════════════════════════════
+function activateDemoMode() {
+  isDemo = true;
+  allData = [...DEMO_LOG];
+  document.getElementById('demoStatus').style.display = 'inline';
+  document.getElementById('setupBanner').style.display = 'none';
+  document.getElementById('authBtn').textContent = '🎯 Mode Demo';
+  document.getElementById('authBtn').classList.add('connected');
+  updateKPIs();
+  renderRecent();
+  showToast('✅ Mode Demo aktif — data tersimpan lokal saja');
+}
+
+// ══════════════════════════════════════════════════════════
+// FORM
+// ══════════════════════════════════════════════════════════
+function autoFillLetak() {
+  const no = document.getElementById('f-no').value;
+  document.getElementById('f-letak').value = LETAK_MAP[no] || '';
+  // Auto-fill pemilik
+  const pemilikMap = {'1':'Wayan Watere','2':'Wayan Watere','3':'Wayan Watere','4':'Wayan Watere',
+    '5':'Made Sadguna','6':'Made Sadguna','7':'Made Sadguna','8':'Made Sadguna','9':'Made Sadguna'};
+  if(pemilikMap[no]) document.getElementById('f-pemilik').value = pemilikMap[no];
+  // Auto-fill luas
+  const luasMap = {'1':50,'2':40,'3':60,'4':49.5,'5':19.5,'6':60,'7':77,'8':25,'9':35};
+  if(luasMap[no]) document.getElementById('f-luas').value = luasMap[no];
+}
+
+function calcBersih() {
+  const hasil = parseFloat(document.getElementById('f-hasil').value)||0;
+  const biaya = parseFloat(document.getElementById('f-biaya').value)||0;
+  const bersih = hasil - biaya;
+  const rb = document.getElementById('resultBox');
+  if(hasil > 0) {
+    rb.style.display = 'flex';
+    document.getElementById('resultVal').textContent = 'Rp ' + bersih.toLocaleString('id-ID');
+    document.getElementById('resultCalc').textContent = `${fmtRp(hasil)} − ${fmtRp(biaya)}`;
+    document.getElementById('hasil-preview').textContent = 'Rp ' + hasil.toLocaleString('id-ID');
+  } else {
+    rb.style.display = 'none';
+  }
+}
+
+function resetForm() {
+  ['f-tanggal','f-musim','f-pemilik','f-no','f-letak','f-penandu','f-luas','f-hasil','f-ket'].forEach(id => {
+    const el = document.getElementById(id);
+    if(el.tagName === 'SELECT') el.value = '';
+    else el.value = '';
+  });
+  document.getElementById('f-biaya').value = '0';
+  document.getElementById('resultBox').style.display = 'none';
+}
+
+function submitPanen() {
+  const d = {
+    tanggal: document.getElementById('f-tanggal').value,
+    musim: document.getElementById('f-musim').value,
+    pemilik: document.getElementById('f-pemilik').value,
+    no: document.getElementById('f-no').value,
+    letak: document.getElementById('f-letak').value,
+    penandu: document.getElementById('f-penandu').value,
+    luas: parseFloat(document.getElementById('f-luas').value)||0,
+    hasil: parseFloat(document.getElementById('f-hasil').value)||0,
+    biaya: parseFloat(document.getElementById('f-biaya').value)||0,
+    ket: document.getElementById('f-ket').value,
+  };
+  d.bersih = d.hasil - d.biaya;
+
+  if(!d.tanggal || !d.musim || !d.pemilik || !d.no) {
+    showToast('Isi Tanggal, Musim, Pemilik, dan No Sawah dahulu!', true); return;
+  }
+  // Format tanggal
+  const dt = new Date(d.tanggal);
+  d.tanggalFmt = `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`;
+  d.tanggal = d.tanggalFmt;
+
+  pendingData = d;
+  document.getElementById('modalPreview').innerHTML =
+    `<b>Tanggal:</b> ${d.tanggal}<br><b>Musim:</b> ${d.musim}<br><b>Pemilik:</b> ${d.pemilik}<br>` +
+    `<b>Sawah No:</b> ${d.no} — ${d.letak}<br><b>Penandu:</b> ${d.penandu}<br>` +
+    `<b>Luas:</b> ${d.luas} Are<br><b>Hasil:</b> ${fmtRp(d.hasil)}<br>` +
+    `<b>Biaya:</b> ${fmtRp(d.biaya)}<br><b>💵 Bersih:</b> <span style="color:var(--green-800);font-weight:700;">${fmtRp(d.bersih)}</span>` +
+    (d.ket ? `<br><b>Ket:</b> ${d.ket}` : '');
+  document.getElementById('modalConfirm').classList.add('show');
+}
+
+async function confirmSave() {
+  closeModal();
+  const d = pendingData;
+  if(!d) return;
+  try {
+    if(isDemo) {
+      allData.unshift(d);
+      showToast('✅ Tersimpan (Demo Mode)');
+    } else if(accessToken) {
+      showSyncStatus();
+      await appendToSheet(d);
+      allData.unshift(d);
+      hideSyncStatus();
+      showToast('✅ Berhasil disimpan ke Google Sheets!');
+    } else {
+      showToast('Hubungkan Google Sheets dulu!', true); return;
+    }
+    updateKPIs();
+    renderRecent();
+    resetForm();
+    pendingData = null;
+  } catch(e) {
+    showToast('Gagal simpan: ' + e.message, true);
+  }
+}
+
+function closeModal() { document.getElementById('modalConfirm').classList.remove('show'); }
+
+// ══════════════════════════════════════════════════════════
+// RENDER FUNCTIONS
+// ══════════════════════════════════════════════════════════
+function updateKPIs() {
+  const total2026 = allData.filter(d => d.musim && d.musim.includes('2026')).reduce((s,d)=>s+d.bersih,0);
+  const totalAll = allData.reduce((s,d)=>s+d.bersih,0);
+  document.getElementById('kpi-2026').textContent = fmtM(total2026);
+  document.getElementById('kpi-total').textContent = fmtM(totalAll);
+}
+
+function renderRecent() {
+  const tb = document.getElementById('recentBody');
+  const recent = [...allData].slice(0, 5);
+  if(!recent.length) { tb.innerHTML = '<tr><td colspan="5"><div class="empty"><div class="empty-icon">🌾</div><p>Belum ada data. Hubungkan Google Sheets atau aktifkan Demo Mode.</p></div></td></tr>'; return; }
+  tb.innerHTML = recent.map(d => `
+    <tr>
+      <td>${d.tanggal}</td>
+      <td><span class="badge ${d.pemilik==='Made Sadguna'?'badge-green':'badge-gold'}">${d.pemilik}</span></td>
+      <td>No.${d.no} ${d.letak}</td>
+      <td>${d.penandu}</td>
+      <td class="rp" style="font-weight:600;color:var(--green-800);">${fmtRp(d.bersih)}</td>
+    </tr>`).join('');
+}
+
+function renderLog() {
+  const musimFilter = document.getElementById('filterMusim')?.value || '';
+  const pemilikFilter = document.getElementById('filterPemilik')?.value || '';
+
+  // Build musim options
+  const musims = [...new Set(allData.map(d=>d.musim).filter(Boolean))].sort().reverse();
+  const fm = document.getElementById('filterMusim');
+  if(fm && fm.options.length <= 1) {
+    musims.forEach(m => { const o = new Option(m,m); fm.add(o); });
+  }
+
+  let data = allData;
+  if(musimFilter) data = data.filter(d=>d.musim===musimFilter);
+  if(pemilikFilter) data = data.filter(d=>d.pemilik===pemilikFilter);
+
+  const tb = document.getElementById('logBody');
+  if(!data.length) { tb.innerHTML = '<tr><td colspan="11"><div class="empty"><div class="empty-icon">📋</div><p>Tidak ada data.</p></div></td></tr>'; return; }
+
+  tb.innerHTML = data.map(d=>`
+    <tr>
+      <td>${d.tanggal}</td>
+      <td><span class="badge ${d.musim?.includes('Tanam 1')?'badge-green':'badge-gold'}">${d.musim}</span></td>
+      <td><small>${d.pemilik}</small></td>
+      <td style="text-align:center;font-weight:700;">${d.no}</td>
+      <td><small>${d.letak}</small></td>
+      <td><small>${d.penandu}</small></td>
+      <td style="text-align:center;">${d.luas}</td>
+      <td class="rp">${fmtRp(d.hasil)}</td>
+      <td class="rp" style="color:var(--red);">${d.biaya>0?fmtRp(d.biaya):'-'}</td>
+      <td class="rp" style="font-weight:700;color:var(--green-800);">${fmtRp(d.bersih)}</td>
+      <td><small style="color:var(--gray-500);">${d.ket||''}</small></td>
+    </tr>`).join('');
+
+  const total = data.reduce((s,d)=>s+d.bersih,0);
+  document.getElementById('logTotal').textContent = `Total ${data.length} transaksi: ${fmtRp(total)}`;
+}
+
+function filterLog() { renderLog(); }
+function refreshLog() { if(accessToken) loadFromSheets(); else renderLog(); }
+
+function renderJadwal() {
+  const tahun = parseInt(document.getElementById('filterTahunJadwal')?.value||'2026');
+  const data = JADWAL_DATA.filter(d=>d.tahun===tahun);
+
+  const t1 = data.filter(d=>d.musim.includes('Tanam 1')).filter(d=>d.status==='selesai').length;
+  const t2 = data.filter(d=>d.musim.includes('Tanam 2')).filter(d=>d.status==='selesai').length;
+  const t1all = data.filter(d=>d.musim.includes('Tanam 1')).length;
+  const t2all = data.filter(d=>d.musim.includes('Tanam 2')).length;
+  document.getElementById('stat-t1').textContent = `${t1}/${t1all} Selesai`;
+  document.getElementById('stat-t2').textContent = `${t2}/${t2all} Selesai`;
+
+  const statusLabel = {selesai:'✅ Selesai',tanam:'🌱 Tanam',panen:'🌾 Siap Panen',rencana:'📋 Rencana',masalah:'⚠️ Masalah',gagal:'❌ Gagal Panen'};
+  const musimLabel = {1:'🌱 Tanam 1', 2:'🌾 Tanam 2'};
+
+  let html = '';
+  let lastMusim = '';
+  data.forEach(d => {
+    if(d.musim !== lastMusim) {
+      const isT1 = d.musim.includes('Tanam 1');
+      html += `<div style="margin:${lastMusim?'20px':'0'} 0 8px;font-size:.75rem;font-weight:700;color:${isT1?'rgba(187,247,208,.7)':'rgba(253,224,71,.7)'};text-transform:uppercase;letter-spacing:.1em;">${isT1?'🌱':'🌾'} ${d.musim}</div>`;
+      lastMusim = d.musim;
+    }
+    html += `
+      <div class="jadwal-card status-${d.status}">
+        <div class="jadwal-no">${d.no}</div>
+        <div class="jadwal-info">
+          <h4>${d.letak}</h4>
+          <p>${d.penandu} · ${d.pemilik}</p>
+        </div>
+        <div class="jadwal-meta">
+          <div class="jadwal-musim">${statusLabel[d.status]||d.status}</div>
+          <div style="font-size:.7rem;color:rgba(187,247,208,.5);margin-top:4px;">🌱 ${d.mulai} → 🌾 ${d.panen}</div>
+        </div>
+      </div>`;
+  });
+  document.getElementById('jadwalGrid').innerHTML = html;
+}
+
+function renderLaporan() {
+  // By musim
+  const byMusim = {};
+  allData.forEach(d => {
+    if(!d.musim) return;
+    byMusim[d.musim] = (byMusim[d.musim]||0) + d.bersih;
+  });
+  const musims = Object.keys(byMusim).sort();
+  const maxMusim = Math.max(...Object.values(byMusim), 1);
+
+  const chartMusim = document.getElementById('chartMusim');
+  if(!musims.length) { chartMusim.innerHTML = '<div class="empty"><div class="empty-icon">📊</div><p>Belum ada data laporan.</p></div>'; }
+  else {
+    chartMusim.innerHTML = musims.reverse().map(m => {
+      const v = byMusim[m];
+      const pct = Math.max(3, (v/maxMusim)*100);
+      const isT1 = m.includes('Tanam 1');
+      return `<div class="chart-bar-row">
+        <div class="chart-bar-label">${m}</div>
+        <div class="chart-bar-track">
+          <div class="chart-bar-fill ${isT1?'':'gold-bar'}" style="width:${pct}%">
+            <span class="chart-bar-val">${fmtM(v)}</span>
+          </div>
+        </div>
+        <div class="chart-bar-ext">${fmtRp(v)}</div>
+      </div>`;}).join('');
+  }
+
+  // By pemilik
+  const totMade = allData.filter(d=>d.pemilik==='Made Sadguna').reduce((s,d)=>s+d.bersih,0);
+  const totWayan = allData.filter(d=>d.pemilik==='Wayan Watere').reduce((s,d)=>s+d.bersih,0);
+  document.getElementById('totalMade').textContent = fmtRp(totMade);
+  document.getElementById('totalWayan').textContent = fmtRp(totWayan);
+
+  // By sawah
+  const bySawah = {};
+  allData.forEach(d=>{
+    const k = `No.${d.no} ${d.letak}`;
+    bySawah[k] = (bySawah[k]||0) + d.bersih;
+  });
+  const sawahArr = Object.entries(bySawah).sort((a,b)=>b[1]-a[1]);
+  const maxSawah = Math.max(...sawahArr.map(x=>x[1]), 1);
+  document.getElementById('chartSawah').innerHTML = sawahArr.map(([label,v]) => `
+    <div class="chart-bar-row">
+      <div class="chart-bar-label">${label}</div>
+      <div class="chart-bar-track">
+        <div class="chart-bar-fill" style="width:${Math.max(3,(v/maxSawah)*100)}%">
+          <span class="chart-bar-val">${fmtM(v)}</span>
+        </div>
+      </div>
+      <div class="chart-bar-ext">${fmtRp(v)}</div>
+    </div>`).join('');
+}
+
+function renderAset() {
+  document.getElementById('asetBody').innerHTML = ASET_DATA.map((a,i)=>`
+    <tr>
+      <td style="text-align:center;font-weight:700;">${a.no}</td>
+      <td><span class="badge ${a.pemilik==='Made Sadguna'?'badge-green':'badge-gold'}">${a.pemilik}</span></td>
+      <td>${a.letak}</td>
+      <td style="text-align:center;">${a.luas} Are</td>
+      <td>${a.penandu}</td>
+      <td class="rp" style="font-size:.78rem;">${a.hp}</td>
+      <td><span class="badge ${a.sertifikat==='Ada'?'badge-green':'badge-gray'}">${a.sertifikat}</span></td>
+      <td><span class="badge badge-green">${a.status}</span></td>
+    </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// UTILS
+// ══════════════════════════════════════════════════════════
+function fmtRp(n) {
+  if(!n && n!==0) return '-';
+  return 'Rp ' + Math.round(n).toLocaleString('id-ID');
+}
+function fmtM(n) {
+  if(!n) return '—';
+  if(n >= 1e9) return (n/1e9).toFixed(1) + 'M';
+  if(n >= 1e6) return (n/1e6).toFixed(1) + 'jt';
+  if(n >= 1e3) return (n/1e3).toFixed(0) + 'rb';
+  return n.toString();
+}
+
+let toastTimer;
+function showToast(msg, err=false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show' + (err?' error':'');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = '', 3000);
+}
+
+function showSyncStatus() {
+  const s = document.getElementById('syncStatus');
+  s.textContent = '🔄 Menyimpan...';
+  s.classList.add('show');
+}
+function hideSyncStatus() {
+  const s = document.getElementById('syncStatus');
+  s.textContent = '✓ Tersimpan';
+  setTimeout(() => s.classList.remove('show'), 2000);
+}
+
+// ══════════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════════
+document.addEventListener('DOMContentLoaded', () => {
+  // Set today's date as default
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('f-tanggal').value = today;
+
+  renderAset();
+  renderRecent();
+  renderJadwal();
+
+  // Check if config exists
+  if(cfg.sheetId && cfg.clientId) {
+    document.getElementById('connStatus').textContent = '⚙️ Konfigurasi tersimpan — klik tombol "Hubungkan Google Sheets"';
+  }
+});
+
+// Close modal on backdrop click
+document.getElementById('modalConfirm').addEventListener('click', function(e) {
+  if(e.target === this) closeModal();
+});
+</script>
+</body>
+</html>
