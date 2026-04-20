@@ -952,6 +952,38 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
           </div>
         </div>
 
+        <!-- Sheet selector -->
+        <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin-bottom:16px;">
+          <div style="font-weight:600;color:var(--brown);margin-bottom:10px;">🗂️ Pilih Sheet & Format Data</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <div>
+              <label style="font-size:.8rem;font-weight:600;color:var(--gray-700);display:block;margin-bottom:4px;">Nama Sheet (Tab)</label>
+              <select id="cfg-sheetName" onchange="saveSheetConfig()" style="width:100%;border:1.5px solid var(--gray-300);border-radius:8px;padding:9px 12px;font-size:.88rem;">
+                <option value="PANEN_LOG">PANEN_LOG (Google Sheets baru)</option>
+                <option value="📈 PANEN LOG">📈 PANEN LOG (File Excel lama)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:.8rem;font-weight:600;color:var(--gray-700);display:block;margin-bottom:4px;">Data mulai dari kolom</label>
+              <select id="cfg-colOffset" onchange="saveSheetConfig()" style="width:100%;border:1.5px solid var(--gray-300);border-radius:8px;padding:9px 12px;font-size:.88rem;">
+                <option value="0">Kolom A (Google Sheets baru)</option>
+                <option value="1">Kolom B (File Excel lama)</option>
+              </select>
+            </div>
+            <div>
+              <label style="font-size:.8rem;font-weight:600;color:var(--gray-700);display:block;margin-bottom:4px;">Data mulai dari baris</label>
+              <select id="cfg-startRow" onchange="saveSheetConfig()" style="width:100%;border:1.5px solid var(--gray-300);border-radius:8px;padding:9px 12px;font-size:.88rem;">
+                <option value="2">Baris 2 (Google Sheets baru)</option>
+                <option value="6">Baris 6 (File Excel lama)</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:flex-end;">
+              <button class="btn btn-secondary btn-sm" onclick="autoDetect()" style="width:100%;">🔍 Auto Detect</button>
+            </div>
+          </div>
+          <div style="margin-top:8px;font-size:.75rem;color:var(--gray-500);">💡 Jika pakai file <strong>Management_Sawah_v2.xlsx</strong> yang sudah ada di Google Drive, pilih opsi "File Excel lama"</div>
+        </div>
+
         <div style="background:var(--green-50);border-radius:10px;padding:16px;margin-top:8px;">
           <div style="font-weight:600;color:var(--green-800);margin-bottom:8px;">📊 Status Koneksi</div>
           <div id="connStatus" style="font-size:.88rem;color:var(--gray-500);">Belum terhubung — isi konfigurasi di atas lalu klik tombol di kanan atas.</div>
@@ -1141,9 +1173,27 @@ function onAuthSuccess() {
 // ══════════════════════════════════════════════════════════
 // GOOGLE SHEETS API
 // ══════════════════════════════════════════════════════════
-const SHEET_NAME = 'PANEN_LOG';
-const SHEET_RANGE = `${SHEET_NAME}!A:L`;
+// Sheet config — support both naming conventions
+// Excel file uses '📈 PANEN LOG', new sheets use 'PANEN_LOG'
+let SHEET_NAME = cfg.sheetName || 'PANEN_LOG';
+let COL_OFFSET = cfg.colOffset || 0; // 0=start from A, 1=start from B
 const HEADERS = ['Tanggal','Musim Tanam','Pemilik Sawah','No Sawah','Letak Sawah','Penandu','Luas (Are)','Hasil Panen (Rp)','Biaya (Rp)','Bersih (Rp)','Keterangan'];
+
+function getColLetter(n) {
+  // n=0 → A, n=1 → B, etc.
+  return String.fromCharCode(65 + n);
+}
+function getRange(startRow) {
+  const sr = startRow || cfg.startRow || 2;
+  const s = getColLetter(COL_OFFSET);
+  const e = getColLetter(COL_OFFSET + 10);
+  return `${SHEET_NAME}!${s}${sr}:${e}5000`;
+}
+function getAppendRange() {
+  const s = getColLetter(COL_OFFSET);
+  const e = getColLetter(COL_OFFSET + 10);
+  return `${SHEET_NAME}!${s}:${e}`;
+}
 
 async function apiRequest(method, range, body) {
   const url = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${encodeURIComponent(range)}${method==='GET'?'?valueRenderOption=UNFORMATTED_VALUE':''}`;
@@ -1162,14 +1212,39 @@ async function loadFromSheets() {
   if(!accessToken) return;
   try {
     showToast('🔄 Memuat data...');
-    const data = await apiRequest('GET', `${SHEET_NAME}!A2:K5000`);
+    // Try configured sheet name first, then auto-detect
+    let data = await apiRequest('GET', getRange(2));
+    
+    // If no data and using PANEN_LOG, try Excel sheet name automatically
+    if((!data.values || data.values.length === 0) && SHEET_NAME === 'PANEN_LOG') {
+      showToast('🔍 Mencoba nama sheet Excel...');
+      SHEET_NAME = '📈 PANEN LOG';
+      COL_OFFSET = 1; // Excel file starts from column B
+      cfg.sheetName = SHEET_NAME;
+      cfg.colOffset = COL_OFFSET;
+      localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+      data = await apiRequest('GET', getRange(6));
+    }
+    
     if(data.values) {
-      allData = data.values.map(r => ({
-        tanggal: r[0]||'', musim: r[1]||'', pemilik: r[2]||'',
-        no: r[3]||'', letak: r[4]||'', penandu: r[5]||'',
-        luas: parseFloat(r[6])||0, hasil: parseFloat(r[7])||0,
-        biaya: parseFloat(r[8])||0, bersih: parseFloat(r[9])||0, ket: r[10]||''
-      }));
+      allData = data.values
+        .filter(r => r && r[0]) // skip empty rows
+        .map(r => {
+          // Handle both date formats: serial number and string
+          let tgl = r[0]||'';
+          if(typeof tgl === 'number') {
+            // Excel serial date → convert
+            const d = new Date((tgl - 25569) * 86400 * 1000);
+            tgl = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+          }
+          return {
+            tanggal: tgl, musim: r[1]||'', pemilik: r[2]||'',
+            no: r[3]||'', letak: r[4]||'', penandu: r[5]||'',
+            luas: parseFloat(r[6])||0, hasil: parseFloat(r[7])||0,
+            biaya: parseFloat(r[8])||0, bersih: parseFloat(r[9])||0, ket: r[10]||''
+          };
+        })
+        .filter(r => r.musim || r.hasil); // only rows with actual data
     }
     updateKPIs();
     renderRecent();
@@ -1187,7 +1262,18 @@ async function appendToSheet(rowData) {
     rowData.letak, rowData.penandu, rowData.luas, rowData.hasil,
     rowData.biaya, rowData.bersih, rowData.ket
   ];
-  await apiRequest('APPEND', `${SHEET_NAME}!A:K`, { values: [row] });
+  // If using Excel sheet, switch append to PANEN_LOG (cleaner)
+  const appendSheet = SHEET_NAME === '📈 PANEN LOG' ? 'PANEN_LOG' : SHEET_NAME;
+  const appendRange = `${appendSheet}!A:K`;
+  await apiRequest('APPEND', appendRange, { values: [row] });
+  // Update sheet name for future reads if we switched
+  if(SHEET_NAME === '📈 PANEN LOG') {
+    SHEET_NAME = 'PANEN_LOG';
+    COL_OFFSET = 0;
+    cfg.sheetName = SHEET_NAME;
+    cfg.colOffset = 0;
+    localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+  }
 }
 
 async function initSheetHeaders() {
@@ -1195,7 +1281,7 @@ async function initSheetHeaders() {
   if(!cfg.sheetId || !cfg.clientId) { showToast('Isi Spreadsheet ID dan Client ID dulu!', true); return; }
   if(!accessToken) { handleAuth(); return; }
   try {
-    await apiRequest('PUT', `${SHEET_NAME}!A1:K1`, { values: [HEADERS] });
+    await apiRequest('PUT', `PANEN_LOG!A1:K1`, { values: [HEADERS] });
     // Also init ASET sheet
     const asetHeaders = ['No','Pemilik Sawah','Letak Sawah','Luas (Are)','Penandu','No HP','No Sertifikat','Status'];
     await apiRequest('PUT', `ASET!A1:H1`, { values: [asetHeaders] });
@@ -1543,9 +1629,86 @@ function hideSyncStatus() {
 }
 
 // ══════════════════════════════════════════════════════════
+// SHEET CONFIG
+// ══════════════════════════════════════════════════════════
+function saveSheetConfig() {
+  const sn = document.getElementById('cfg-sheetName')?.value || 'PANEN_LOG';
+  const co = parseInt(document.getElementById('cfg-colOffset')?.value || '0');
+  const sr = parseInt(document.getElementById('cfg-startRow')?.value || '2');
+  SHEET_NAME = sn;
+  COL_OFFSET = co;
+  cfg.sheetName = sn;
+  cfg.colOffset = co;
+  cfg.startRow = sr;
+  localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+  showToast('✅ Konfigurasi sheet tersimpan');
+}
+
+function loadSheetConfig() {
+  if(cfg.sheetName) {
+    SHEET_NAME = cfg.sheetName;
+    COL_OFFSET = cfg.colOffset || 0;
+    const sn = document.getElementById('cfg-sheetName');
+    const co = document.getElementById('cfg-colOffset');
+    const sr = document.getElementById('cfg-startRow');
+    if(sn) sn.value = cfg.sheetName;
+    if(co) co.value = cfg.colOffset || 0;
+    if(sr) sr.value = cfg.startRow || 2;
+  }
+}
+
+async function autoDetect() {
+  if(!accessToken) { showToast('Hubungkan Google Sheets dulu!', true); return; }
+  showToast('🔍 Auto detecting...');
+  
+  // Get sheet names from spreadsheet
+  try {
+    const r = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}?fields=sheets.properties.title`, {
+      headers: { 'Authorization': 'Bearer ' + accessToken }
+    });
+    const d = await r.json();
+    const sheets = d.sheets.map(s => s.properties.title);
+    
+    // Check for Excel sheet name
+    if(sheets.includes('📈 PANEN LOG')) {
+      SHEET_NAME = '📈 PANEN LOG';
+      COL_OFFSET = 1;
+      cfg.sheetName = SHEET_NAME;
+      cfg.colOffset = 1;
+      cfg.startRow = 6;
+      localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+      document.getElementById('cfg-sheetName').value = '📈 PANEN LOG';
+      document.getElementById('cfg-colOffset').value = '1';
+      document.getElementById('cfg-startRow').value = '6';
+      showToast('✅ Terdeteksi: File Excel (📈 PANEN LOG, mulai kolom B baris 6)');
+      loadFromSheets();
+    } else if(sheets.includes('PANEN_LOG')) {
+      SHEET_NAME = 'PANEN_LOG';
+      COL_OFFSET = 0;
+      cfg.sheetName = SHEET_NAME;
+      cfg.colOffset = 0;
+      cfg.startRow = 2;
+      localStorage.setItem(CFG_KEY, JSON.stringify(cfg));
+      document.getElementById('cfg-sheetName').value = 'PANEN_LOG';
+      document.getElementById('cfg-colOffset').value = '0';
+      document.getElementById('cfg-startRow').value = '2';
+      showToast('✅ Terdeteksi: Google Sheets baru (PANEN_LOG, mulai kolom A baris 2)');
+      loadFromSheets();
+    } else {
+      showToast('Sheet tidak dikenali. Sheet yang ada: ' + sheets.join(', '), true);
+    }
+  } catch(e) {
+    showToast('Auto detect gagal: ' + e.message, true);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
+  // Load sheet config
+  loadSheetConfig();
+  
   // Set today's date as default
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('f-tanggal').value = today;
