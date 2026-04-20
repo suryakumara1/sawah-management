@@ -608,7 +608,7 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
   </div>
   <div class="topbar-right">
     <span id="syncStatus">✓ Tersimpan</span>
-    <button id="authBtn" onclick="handleAuth()">🔗 Hubungkan Google Sheets</button>
+    <button id="authBtn" onclick="handleAuth()">👁️ Lihat Data</button>
   </div>
 </div>
 
@@ -688,6 +688,7 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 
   <!-- ══ INPUT PANEN ══ -->
   <div id="page-input" class="page">
+    <div id="readonlyBanner" style="display:none;background:#fee2e2;border:1px solid #fca5a5;border-radius:10px;padding:14px 18px;margin-bottom:16px;color:#991b1b;font-size:.88rem;">🔒 Anda dalam <strong>Mode Lihat Saja</strong> — tidak bisa menambah data. Hanya pemilik yang bisa input.</div>
     <div class="card">
       <div class="card-header">✏️ Input Hasil Panen Baru</div>
       <div class="card-body">
@@ -1039,6 +1040,9 @@ tbody td { padding: 10px 14px; vertical-align: middle; }
 // ══════════════════════════════════════════════════════════
 const CFG_KEY = 'sawah_config';
 let cfg = JSON.parse(localStorage.getItem(CFG_KEY) || '{}');
+// Hardcoded API key for public read-only access
+const PUBLIC_API_KEY = 'AIzaSyBZWiW_jsFwsSBTAX7yAQ_iniZ047alr0s';
+let isReadOnly = false; // true if viewing without login
 let tokenClient = null;
 let accessToken = null;
 let isDemo = false;
@@ -1139,8 +1143,12 @@ function loadConfig() {
 // AUTH - Google OAuth
 // ══════════════════════════════════════════════════════════
 function handleAuth() {
-  if(!cfg.clientId) { showToast('Isi Client ID Google dulu di menu ⚙️ Setup', true); showPage('setup', document.querySelectorAll('.nav-btn')[6]); return; }
-  if(!cfg.sheetId) { showToast('Isi Spreadsheet ID dulu di menu ⚙️ Setup', true); return; }
+  if(!cfg.sheetId) { showToast('Isi Spreadsheet ID dulu di menu ⚙️ Setup', true); showPage('setup', document.querySelectorAll('.nav-btn')[6]); return; }
+  // If no clientId, use public read-only mode
+  if(!cfg.clientId) {
+    loadPublicData();
+    return;
+  }
   initGoogleAuth();
 }
 
@@ -1208,6 +1216,78 @@ async function apiRequest(method, range, body) {
   return res.json();
 }
 
+async function loadPublicData() {
+  // Read-only access using API key — no login needed
+  if(!cfg.sheetId) { showToast('Spreadsheet ID belum diisi di Setup', true); return; }
+  try {
+    showToast('🔄 Memuat data...');
+    isReadOnly = true;
+    
+    // Try Excel sheet name first
+    let sheetName = cfg.sheetName || '📈 PANEN LOG';
+    let colOffset = cfg.colOffset !== undefined ? cfg.colOffset : 1;
+    let startRow = cfg.startRow || 6;
+    
+    const s = getColLetter(colOffset);
+    const e = getColLetter(colOffset + 10);
+    const range = `${sheetName}!${s}${startRow}:${e}5000`;
+    
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${encodeURIComponent(range)}?valueRenderOption=UNFORMATTED_VALUE&key=${PUBLIC_API_KEY}`;
+    const res = await fetch(url);
+    const data = await res.json();
+    
+    if(data.error) {
+      // Try PANEN_LOG if Excel name fails
+      const range2 = `PANEN_LOG!A2:K5000`;
+      const url2 = `https://sheets.googleapis.com/v4/spreadsheets/${cfg.sheetId}/values/${encodeURIComponent(range2)}?valueRenderOption=UNFORMATTED_VALUE&key=${PUBLIC_API_KEY}`;
+      const res2 = await fetch(url2);
+      const data2 = await res2.json();
+      if(data2.values) {
+        processSheetData(data2.values, 0);
+      } else {
+        showToast('Gagal memuat. Pastikan Google Sheets sudah di-share publik.', true);
+        return;
+      }
+    } else if(data.values) {
+      processSheetData(data.values, colOffset);
+    }
+    
+    updateKPIs();
+    renderRecent();
+    showToast('✅ Data berhasil dimuat');
+    
+    // Update UI for read-only mode
+    document.getElementById('authBtn').textContent = '👁️ Mode Lihat';
+    document.getElementById('authBtn').classList.add('connected');
+    document.getElementById('setupBanner').style.display = 'none';
+    document.getElementById('connStatus').textContent = '👁️ Mode Read-Only — Data berhasil dimuat';
+    const rb = document.getElementById('readonlyBanner');
+    if(rb) rb.style.display = 'block';
+    
+  } catch(e) {
+    showToast('Gagal memuat: ' + e.message, true);
+  }
+}
+
+function processSheetData(values, offset) {
+  allData = values
+    .filter(r => r && r[0])
+    .map(r => {
+      let tgl = r[0]||'';
+      if(typeof tgl === 'number') {
+        const d = new Date((tgl - 25569) * 86400 * 1000);
+        tgl = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+      }
+      return {
+        tanggal: tgl, musim: r[1]||'', pemilik: r[2]||'',
+        no: r[3]||'', letak: r[4]||'', penandu: r[5]||'',
+        luas: parseFloat(r[6])||0, hasil: parseFloat(r[7])||0,
+        biaya: parseFloat(r[8])||0, bersih: parseFloat(r[9])||0, ket: r[10]||''
+      };
+    })
+    .filter(r => r.musim || r.hasil);
+}
+
 async function loadFromSheets() {
   if(!accessToken) return;
   try {
@@ -1227,24 +1307,7 @@ async function loadFromSheets() {
     }
     
     if(data.values) {
-      allData = data.values
-        .filter(r => r && r[0]) // skip empty rows
-        .map(r => {
-          // Handle both date formats: serial number and string
-          let tgl = r[0]||'';
-          if(typeof tgl === 'number') {
-            // Excel serial date → convert
-            const d = new Date((tgl - 25569) * 86400 * 1000);
-            tgl = `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
-          }
-          return {
-            tanggal: tgl, musim: r[1]||'', pemilik: r[2]||'',
-            no: r[3]||'', letak: r[4]||'', penandu: r[5]||'',
-            luas: parseFloat(r[6])||0, hasil: parseFloat(r[7])||0,
-            biaya: parseFloat(r[8])||0, bersih: parseFloat(r[9])||0, ket: r[10]||''
-          };
-        })
-        .filter(r => r.musim || r.hasil); // only rows with actual data
+      processSheetData(data.values, COL_OFFSET);
     }
     updateKPIs();
     renderRecent();
@@ -1363,6 +1426,7 @@ function resetForm() {
 }
 
 function submitPanen() {
+  if(isReadOnly) { showToast('Mode Read-Only — tidak bisa input data', true); return; }
   const d = {
     tanggal: document.getElementById('f-tanggal').value,
     musim: document.getElementById('f-musim').value,
@@ -1717,9 +1781,11 @@ document.addEventListener('DOMContentLoaded', () => {
   renderRecent();
   renderJadwal();
 
-  // Check if config exists
-  if(cfg.sheetId && cfg.clientId) {
-    document.getElementById('connStatus').textContent = '⚙️ Konfigurasi tersimpan — klik tombol "Hubungkan Google Sheets"';
+  // Auto-load public data if sheetId exists
+  if(cfg.sheetId) {
+    document.getElementById('connStatus').textContent = '⚙️ Konfigurasi tersimpan — klik "👁️ Lihat Data" untuk memuat';
+    // Auto load after short delay
+    setTimeout(() => loadPublicData(), 800);
   }
 });
 
