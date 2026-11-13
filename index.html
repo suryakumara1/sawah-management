@@ -386,6 +386,21 @@ $('sidSave').onclick=()=>{cfg.id=$('sid').value.trim();localStorage.setItem(LS,J
 $('progSeason').onchange=e=>{S.prog=e.target.value;renderHome();};
 $('fMusim').onchange=renderHist;$('fOwner').onchange=renderHist;
 
+/* ===== RAPIKAN FORMAT BARIS BARU ===== */
+let LOG_GID=null;
+async function copyRowFormat(row,token){
+  const src=row-2>=FIRST_ROW?row-2:row-1;           // baris -2 = warna selang-seling yang sama
+  if(src<FIRST_ROW)return;
+  const h={Authorization:'Bearer '+token,'Content-Type':'application/json'};
+  const base='https://sheets.googleapis.com/v4/spreadsheets/'+SID();
+  if(LOG_GID==null){
+    const m=await (await fetch(base+'?fields=sheets.properties(sheetId,title)',{headers:h})).json();
+    const sh=(m.sheets||[]).find(x=>x.properties.title===LOG_SHEET);if(!sh)return;LOG_GID=sh.properties.sheetId;
+  }
+  const rng=r=>({sheetId:LOG_GID,startRowIndex:r-1,endRowIndex:r,startColumnIndex:1,endColumnIndex:12});
+  await fetch(base+':batchUpdate',{method:'POST',headers:h,body:JSON.stringify({requests:[{copyPaste:{source:rng(src),destination:rng(row),pasteType:'PASTE_FORMAT',pasteOrientation:'NORMAL'}}]})});
+}
+
 /* ===== FORM CATAT ===== */
 function buildPicker(){
   const g=[['Warisan Paman — Wayan Watere','Wayan Watere'],['Sawah Ayah — I Made Sadguna','Made Sadguna']];
@@ -446,6 +461,7 @@ $('save').onclick=async()=>{
     const r=await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${SID()}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
       {method:'PUT',headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify({range,majorDimension:'ROWS',values:vals})});
     if(!r.ok){const j=await r.json().catch(()=>({}));throw httpErr(r.status,j);}
+    try{await copyRowFormat(row,token);}catch(e){}   // rapikan tampilan baris, tidak wajib berhasil
     ROWS.push({i:ROWS.length,ts:p.ts,musim:$('musim').value,pemilik:s.pemilik,no:s.no,letak:s.letak,penandu:$('pen').value,luas:s.luas,hasil:h,biaya:b,bersih:h-b,ket:$('ket').value.trim()});
     const done=`✅ Tersimpan: Sawah ${s.no} · ${esc(s.letak)} · ${fmt(h-b)} (baris ${row})`;
     resetForm(true);renderAll();showMsg('addMsg',done,'ok');window.scrollTo(0,0);
